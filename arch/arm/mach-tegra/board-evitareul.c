@@ -1064,9 +1064,6 @@ static void __init evitareul_uart_init(void)
 
 #ifdef CONFIG_SERIAL_TEGRA_BRCM
 	evitareul_brcm_uart_pdata = evitareul_uart_pdata;
-#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
-	evitareul_brcm_uart_pdata.bt_wakeup_pin_supported = 0;
-#else
 	evitareul_brcm_uart_pdata.bt_wakeup_pin_supported = 1;
 #ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
 	evitareul_brcm_uart_pdata.exit_lpm_cb = bcm_bt_lpm_exit_lpm;
