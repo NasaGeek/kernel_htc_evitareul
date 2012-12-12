@@ -100,6 +100,13 @@ extern bool is_resume_from_deep_suspend(void);
 #include <media/rawchip/rawchip.h>
 #include <media/rawchip/Yushan_HTC_Functions.h>
 
+<<<<<<< HEAD
+=======
+#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
+#include <linux/bcm_bt_lpm.h>
+#endif
+
+>>>>>>> 0083314... BT LPM work
 static struct balanced_throttle throttle_list[] = {
 	{
 		.id = BALANCED_THROTTLE_ID_TJ,
@@ -748,6 +755,28 @@ static void enrc2b_i2c_init(void)
 #endif
 }
 
+<<<<<<< HEAD
+=======
+#ifdef CONFIG_SERIAL_TEGRA_BRCM
+#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
+static struct bcm_bt_lpm_platform_data bcm_bt_lpm_pdata = {
+	.gpio_wake = ENRC2B_GPIO_BT_WAKE,
+	.gpio_host_wake = ENRC2B_GPIO_BT_HOST_WAKE,
+	.request_lpm_off_locked = tegra_lpm_off_locked,
+	.request_lpm_on_locked = tegra_lpm_on_locked,
+};
+
+struct platform_device bcm_bt_lpm_device = {
+	.name = "bcm_bt_lpm",
+	.id = 0,
+	.dev = {
+		.platform_data = &bcm_bt_lpm_pdata,
+	},
+};
+#endif
+#endif
+
+>>>>>>> 0083314... BT LPM work
 static struct platform_device *enrc2b_uart_devices[] __initdata = {
 	&tegra_uarta_device,
 	&tegra_uartb_device,
@@ -835,10 +864,9 @@ static void __init enrc2b_uart_init(void)
 
 #ifdef CONFIG_SERIAL_TEGRA_BRCM
 	enrc2b_brcm_uart_pdata = enrc2b_uart_pdata;
-#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
-	enrc2b_brcm_uart_pdata.bt_wakeup_pin_supported = 0;
-#else
 	enrc2b_brcm_uart_pdata.bt_wakeup_pin_supported = 1;
+#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
+	enrc2b_brcm_uart_pdata.exit_lpm_cb = bcm_bt_lpm_exit_lpm;
 #endif
 	enrc2b_brcm_uart_pdata.bt_wakeup_pin = ENRC2B_GPIO_BT_WAKE;
 	enrc2b_brcm_uart_pdata.host_wakeup_pin = ENRC2B_GPIO_BT_HOST_WAKE;

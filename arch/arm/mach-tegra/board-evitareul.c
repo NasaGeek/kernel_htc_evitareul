@@ -102,7 +102,7 @@ extern unsigned engineer_id;
 #include <media/rawchip/Yushan_HTC_Functions.h>
 
 #ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
-#include <mach/bcm_bt_lpm.h>
+#include <linux/bcm_bt_lpm.h>
 #endif
 
 
@@ -962,10 +962,10 @@ static void evitareul_i2c_init(void)
 #ifdef CONFIG_SERIAL_TEGRA_BRCM
 #ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
 static struct bcm_bt_lpm_platform_data bcm_bt_lpm_pdata = {
-  .gpio_wake = ENRC2B_GPIO_BT_WAKE,
-  .gpio_host_wake = ENRC2B_GPIO_BT_HOST_WAKE,
-  .request_lpm_off = tegra_lpm_off,
-  .request_lpm_on = tegra_lpm_on,
+  .gpio_wake = evitareul_GPIO_BT_WAKE,
+  .gpio_host_wake = evitareul_GPIO_BT_HOST_WAKE,
+  .request_lpm_off_locked = tegra_lpm_off_locked,
+  .request_lpm_on_locked = tegra_lpm_on_locked,
 };
 
 struct platform_device bcm_bt_lpm_device = {
@@ -1068,6 +1068,8 @@ static void __init evitareul_uart_init(void)
 	evitareul_brcm_uart_pdata.bt_wakeup_pin_supported = 0;
 #else
 	evitareul_brcm_uart_pdata.bt_wakeup_pin_supported = 1;
+#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
+	evitareul_brcm_uart_pdata.exit_lpm_cb = bcm_bt_lpm_exit_lpm;
 #endif
 	evitareul_brcm_uart_pdata.bt_wakeup_pin = EVITAREUL_GPIO_BT_WAKE;
 	evitareul_brcm_uart_pdata.host_wakeup_pin = EVITAREUL_GPIO_BT_HOST_WAKE;
