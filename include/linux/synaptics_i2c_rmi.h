@@ -24,6 +24,7 @@
 #define SYNAPTICS_3K_INCELL_NAME "synaptics-3k-incell"
 #define SYNAPTICS_3200_NAME "synaptics-3200"
 #define SYNAPTICS_FW_3_2_PACKRAT 1115999
+#define SYNAPTICS_FW_NOCAL_PACKRAT 1293981
 
 
 #define SYN_CONFIG_SIZE 32 * 16
@@ -164,5 +165,10 @@ enum {
 	INTR_SOURCE,
 	FUNCTION
 };
+
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE
+/* Sweep2Wake */
+extern void sweep2wake_setdev(struct input_dev * input_device);
+#endif
 
 #endif /* _LINUX_SYNAPTICS_I2C_RMI_H */

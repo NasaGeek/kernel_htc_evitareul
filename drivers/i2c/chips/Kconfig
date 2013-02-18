@@ -95,6 +95,12 @@ config SND_AMP_TFA9887
 	help
 	  Say Y here to enable the TFA9887 amplifier driver
 
+config SND_AMP_TFA9887_CONFIG
+	tristate "TFA9887 amplifier init config"
+	depends on SND_AMP_TFA9887=y
+	help
+	  Say Y here to enable the TFA9887 amplifier driver initial config on power on
+
 config SND_AMP_TPA6185
 	tristate "TPA6185 amplifier"
 	depends on I2C=y

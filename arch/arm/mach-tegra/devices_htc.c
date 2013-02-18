@@ -471,6 +471,21 @@ int board_zchg_mode(void)
 EXPORT_SYMBOL(board_zchg_mode);
 __setup("enable_zcharge=", board_zchg_mode_init);
 
+static unsigned int sf = 0;
+int __init board_sf_init(char *s)
+{
+	sf = simple_strtoul(s, 0, 10);
+	return 1;
+}
+
+int get_tamper_sf(void)
+{
+	return sf;
+}
+
+EXPORT_SYMBOL(get_tamper_sf);
+__setup("androidboot.sf=", board_sf_init);
+
 static int build_flag;
 
 static int __init board_bootloader_setup(char *str)
