@@ -1064,7 +1064,11 @@ static void __init evitareul_uart_init(void)
 
 #ifdef CONFIG_SERIAL_TEGRA_BRCM
 	evitareul_brcm_uart_pdata = evitareul_uart_pdata;
+#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
+	evitareul_brcm_uart_pdata.bt_wakeup_pin_supported = 0;
+#else
 	evitareul_brcm_uart_pdata.bt_wakeup_pin_supported = 1;
+#endif
 	evitareul_brcm_uart_pdata.bt_wakeup_pin = EVITAREUL_GPIO_BT_WAKE;
 	evitareul_brcm_uart_pdata.host_wakeup_pin = EVITAREUL_GPIO_BT_HOST_WAKE;
 	tegra_uartc_device.dev.platform_data = &evitareul_brcm_uart_pdata;
