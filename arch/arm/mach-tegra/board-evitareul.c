@@ -962,8 +962,8 @@ static void evitareul_i2c_init(void)
 #ifdef CONFIG_SERIAL_TEGRA_BRCM
 #ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
 static struct bcm_bt_lpm_platform_data bcm_bt_lpm_pdata = {
-  .gpio_wake = evitareul_GPIO_BT_WAKE,
-  .gpio_host_wake = evitareul_GPIO_BT_HOST_WAKE,
+  .gpio_wake = EVITAREUL_GPIO_BT_WAKE,
+  .gpio_host_wake = EVITAREUL_GPIO_BT_HOST_WAKE,
   .request_lpm_off_locked = tegra_lpm_off_locked,
   .request_lpm_on_locked = tegra_lpm_on_locked,
 };
