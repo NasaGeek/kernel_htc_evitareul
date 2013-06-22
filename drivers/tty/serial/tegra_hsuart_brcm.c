@@ -47,6 +47,8 @@
 #define A2DP_TUNING_SUPPORTED
 #define OPP_TUNING_SUPPORTED
 
+#include "../../../arch/arm/mach-tegra/tegra_pmqos.h"
+
 #ifdef A2DP_TUNING_SUPPORTED
 #include <linux/pm_qos_params.h>
 #endif
@@ -108,19 +110,11 @@ const int dma_req_sel_brcm[] = {
 #define TEGRA_UART_TX_TRIG_4B  0x20
 #define TEGRA_UART_TX_TRIG_1B  0x30
 
-#ifdef A2DP_TUNING_SUPPORTED
-#define A2DP_CPU_FREQ_MIN 204000
-#endif
-
-#ifdef OPP_TUNING_SUPPORTED
-#define OPP_CPU_FREQ_MIN 800000
-#endif
-
 #define T_LOW 0
 #define T_HIGH 1
 
 #define USE_BCM_BT_CHIP
-#define BCM_BT_DEBUG
+#undef BCM_BT_DEBUG
 
 #define TX_EMPTY_TIMEOUT_CNT	10000
 
@@ -196,16 +190,11 @@ struct tegra_uart_port {
 
 };
 
-#ifdef A2DP_TUNING_SUPPORTED
-static struct pm_qos_request_list a2dp_cpu_minfreq_req;
-
-static unsigned char a2dp_tuning_state;
-
 #define SERIAL_HS_CREATE_DEVICE_ATTR(_name) 		\
 	struct device_attribute dev_attr_##_name = {	\
 		.attr = {									\
 			.name = __stringify(_name),				\
-			.mode = 0644,							\
+			.mode = 0664,							\
 		},											\
 		.show = NULL,								\
 		.store = NULL,								\
@@ -213,15 +202,23 @@ static unsigned char a2dp_tuning_state;
 
 #define SERIAL_HS_SET_DEVICE_ATTR(_name, _mode, _show, _store)	\
 	do {														\
-		dev_attr_##_name.attr.mode = 0644;						\
+		dev_attr_##_name.attr.mode = 0664;						\
 		dev_attr_##_name.show = _show;							\
 		dev_attr_##_name.store = _store;						\
 	} while(0)
 
+#ifdef A2DP_TUNING_SUPPORTED
+static struct pm_qos_request_list a2dp_cpu_minfreq_req;
+
+static unsigned char a2dp_tuning_state;
+static unsigned int a2dp_tuning_freq = A2DP_CPU_FREQ_MIN;
+
 static SERIAL_HS_CREATE_DEVICE_ATTR(a2dp_tuning);
+static SERIAL_HS_CREATE_DEVICE_ATTR(a2dp_tuning_freq);
 
 static struct attribute *a2dp_serial_hs_attributes[] = {
 	&dev_attr_a2dp_tuning.attr,
+	&dev_attr_a2dp_tuning_freq.attr,
 	NULL,
 };
 
@@ -237,25 +234,52 @@ static ssize_t show_a2dp_tuning(struct device *dev, struct device_attribute *att
 static ssize_t store_a2dp_tuning(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	char in_char[] = "0";
-
+	unsigned int value;
+	
 	sscanf(buf, "%1s", in_char);
 
 	if (strcmp(in_char, "0") == 0) {
-		a2dp_tuning_state = 0;
+		value = 0;
 	}
 	else if (strcmp(in_char, "1") == 0) {
-		a2dp_tuning_state = 1;
+		value = 1;
 	}
-	if (1 == a2dp_tuning_state) {
-		pm_qos_update_request(&a2dp_cpu_minfreq_req, (s32)A2DP_CPU_FREQ_MIN);
-		pr_info("pm_qos_update_request - A2DP_CPU_FREQ_MIN");
-	}
-	else if (0 == a2dp_tuning_state) {
+	if (value == a2dp_tuning_state)
+		return count;
+		
+	a2dp_tuning_state = value;
+	if (1 == a2dp_tuning_state)
+		pm_qos_update_request(&a2dp_cpu_minfreq_req, (s32)a2dp_tuning_freq);
+	else if (0 == a2dp_tuning_state)
 		pm_qos_update_request(&a2dp_cpu_minfreq_req, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
-		pr_info("pm_qos_update_request - PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE");
-	}
 
-	return 1;
+	return count;
+}
+
+static ssize_t show_a2dp_tuning_freq(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", a2dp_tuning_freq);
+}
+
+static ssize_t store_a2dp_tuning_freq(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int tmp;
+	
+	if (1 != sscanf(buf, "%u", &tmp))
+		return -EINVAL;
+
+	// 0 means reset to default
+	if (tmp == 0)
+		tmp = A2DP_CPU_FREQ_MIN;
+		
+	a2dp_tuning_freq = tmp;
+    pr_info("a2dp_tuning_freq %d\n", a2dp_tuning_freq);
+
+	// update QoS
+	if (1 == a2dp_tuning_state)
+		pm_qos_update_request(&a2dp_cpu_minfreq_req, (s32)a2dp_tuning_freq);
+	
+   	return count;
 }
 #endif
 
@@ -263,23 +287,6 @@ static ssize_t store_a2dp_tuning(struct device *dev, struct device_attribute *at
 static struct pm_qos_request_list opp_cpu_minfreq_req;
 
 static unsigned char opp_tuning_state;
-
-#define SERIAL_HS_CREATE_DEVICE_ATTR(_name) 		\
-	struct device_attribute dev_attr_##_name = {	\
-		.attr = {									\
-			.name = __stringify(_name),				\
-			.mode = 0660,							\
-		},											\
-		.show = NULL,								\
-		.store = NULL,								\
-	}
-
-#define SERIAL_HS_SET_DEVICE_ATTR(_name, _mode, _show, _store)	\
-	do {														\
-		dev_attr_##_name.attr.mode = 0660;						\
-		dev_attr_##_name.show = _show;							\
-		dev_attr_##_name.store = _store;						\
-	} while(0)
 
 static SERIAL_HS_CREATE_DEVICE_ATTR(opp_tuning);
 
@@ -1007,11 +1014,10 @@ static int tegra_uart_hw_init(struct tegra_uart_port *t)
 	return 0;
 }
 
+#ifndef CONFIG_SERIAL_TEGRA_BRCM_LPM
 static irqreturn_t bluesleep_hostwake_isr(int irq, void *dev)
 {
 #ifdef USE_BCM_BT_CHIP	/* bt for brcm */
-#ifndef CONFIG_SERIAL_TEGRA_BRCM_LPM
-
 	unsigned long flags;
 	struct tegra_uart_port *t = (struct tegra_uart_port *)dev;
 	struct uart_port *uport = &t->uport;
@@ -1029,7 +1035,9 @@ static irqreturn_t bluesleep_hostwake_isr(int irq, void *dev)
 
 		/* release rx wake lock */
 		if (t->is_brcm_rx_wake_locked == 1) {
+#ifdef BCM_BT_DEBUG
 			dev_info(t->uport.dev, "[SER_BRCM]release brcm_rx_wake_lock\n");
+#endif
 			wake_unlock(&t->brcm_rx_wake_lock);
 			t->is_brcm_rx_wake_locked = 0;
 		}
@@ -1051,10 +1059,10 @@ static irqreturn_t bluesleep_hostwake_isr(int irq, void *dev)
 	}
 
 	spin_unlock_irqrestore(&uport->lock, flags);
-#endif
 #endif /* USE_BCM_BT_CHIP */
 	return IRQ_HANDLED;
 }
+#endif
 
 static int tegra_uart_init_rx_dma_buffer(struct tegra_uart_port *t)
 {
@@ -1182,10 +1190,8 @@ static int tegra_startup(struct uart_port *u)
 		dev_info(u->dev,"[SER_BRCM] Requesting HOSTWAKE IRQ %d\n", t->wakeup_irq);
 		ret = request_irq(t->wakeup_irq, bluesleep_hostwake_isr, IRQF_TRIGGER_HIGH,
 			"bluetooth hostwake", t);
-#endif
-
 		if (ret < 0) {
-			dev_info(u->dev, "[SER_BRCM]Couldn't acquire BT_HOST_WAKE IRQ, (errno = %d)", ret);
+			dev_err(u->dev, "[SER_BRCM]Couldn't acquire BT_HOST_WAKE IRQ, (errno = %d)", ret);
 		}
 #endif
 
@@ -1207,8 +1213,10 @@ fail:
 
 static void tegra_shutdown(struct uart_port *u)
 {
-	struct tegra_uart_port *t;
+#ifndef CONFIG_SERIAL_TEGRA_BRCM_LPM
 	int ret = 0;
+#endif
+	struct tegra_uart_port *t;
 	t = container_of(u, struct tegra_uart_port, uport);
 #ifdef BCM_BT_DEBUG
 	dev_info(t->uport.dev, "[SER_BRCM] +tegra_shutdown\n");
@@ -1234,10 +1242,9 @@ static void tegra_shutdown(struct uart_port *u)
 #ifdef BCM_BT_DEBUG
 		dev_info(t->uport.dev, "[SER_BRCM] BT_ON_SYS_IDLE -> BT_OFF_SYS_IDLE\n");
 #endif //BCM_BT_DEBUG
-#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
+#ifndef CONFIG_SERIAL_TEGRA_BRCM_LPM
 		/* disable irq wakeup when shutdown **/
 		free_irq(t->wakeup_irq, t);
-#endif
 		gpio_direction_output(t->bt_wakeup_pin, T_LOW);
 #endif
 		t->bt_state = BT_OFF_SYS_IDLE;//close BT
@@ -1520,8 +1527,10 @@ static unsigned long find_best_clock_source(struct tegra_uart_port *t,
 	}
 
 	if (final_index >= 0) {
+#ifdef BCM_BT_DEBUG
 		dev_info(t->uport.dev, "Setting clk_src %s\n",
 				pdata->parent_clk_list[final_index].name);
+#endif
 		clk_set_parent(t->clk,
 			pdata->parent_clk_list[final_index].parent_clk);
 	}
@@ -1710,7 +1719,9 @@ static int tegra_ioctl(struct uart_port *u, unsigned int cmd, unsigned long arg)
 				gpio_set_value(tegra_uport->bt_wakeup_pin, T_LOW);
 				tegra_uport->bt_wakeup_level = 0;
 				tegra_uport->host_want_sleep = 0;
+#ifdef BCM_BT_DEBUG
 				dev_info(u->dev, "[BT]-- HOST BT_WAKE=LOW --\n");
+#endif
 			}
 			spin_unlock_irqrestore(&u->lock, tflags);
 			break;
@@ -1722,7 +1733,9 @@ static int tegra_ioctl(struct uart_port *u, unsigned int cmd, unsigned long arg)
 						gpio_set_value(tegra_uport->bt_wakeup_pin, T_HIGH);
 						tegra_uport->bt_wakeup_level = 1;
 						tegra_uport->bt_wakeup_assert_inadvance = 0;
+#ifdef BCM_BT_DEBUG
 						dev_info(u->dev, "[SER_BRCM] BT_WAKE=HIGH\n");
+#endif
 				}
 			}
 
@@ -1847,6 +1860,7 @@ static int __init tegra_uart_probe(struct platform_device *pdev)
 			printk(KERN_ERR "%s reg attr fail!!", __func__);
 
 		SERIAL_HS_SET_DEVICE_ATTR(a2dp_tuning, 0644, show_a2dp_tuning, store_a2dp_tuning);
+		SERIAL_HS_SET_DEVICE_ATTR(a2dp_tuning_freq, 0644, show_a2dp_tuning_freq, store_a2dp_tuning_freq);
 #endif
 
 #ifdef OPP_TUNING_SUPPORTED
@@ -1873,7 +1887,7 @@ static int __init tegra_uart_probe(struct platform_device *pdev)
 	u->iotype = UPIO_MEM32;
 
 	u->irq = platform_get_irq(pdev, 0);
-	if (unlikely(u->irq < 0)) {
+	if (unlikely((int)(u->irq) < 0)) {
 		ret = -ENXIO;
 		goto fail;
 	}
@@ -2128,7 +2142,6 @@ void tegra_brcm_uart_request_clock_off(struct uart_port *uport)
 
 void tegra_brcm_uart_request_clock_off_locked(struct uart_port *uport)
 {
-	unsigned long flags;
 	struct tegra_uart_port *t;
 	bool is_clk_disable = false;
 
@@ -2181,7 +2194,6 @@ void tegra_brcm_uart_request_clock_on(struct uart_port *uport)
 
 void tegra_brcm_uart_request_clock_on_locked(struct uart_port *uport)
 {
-	unsigned long flags;
 	struct tegra_uart_port *t;
 	bool is_clk_enable = false;
 
@@ -2247,15 +2259,6 @@ void tegra_lpm_on_locked(struct uart_port *u)
 	dev_info(u->dev, "[SER_BRCM]tegra_lpm_on\n");
 #endif //BCM_BT_DEBUG
 
-	tegra_uport->host_want_sleep = 1;
-	if(tegra_uport->host_want_sleep) {
-	        if((tegra_uport->bt_wakeup_level == 0) || (tegra_uport->bt_wakeup_assert_inadvance == 1)) {
-		        gpio_set_value(tegra_uport->bt_wakeup_pin, T_HIGH);
-			tegra_uport->bt_wakeup_level = 1;
-			tegra_uport->bt_wakeup_assert_inadvance = 0;
-			dev_info(u->dev, "[SER_BRCM] BT_WAKE=HIGH\n");
-		}
-	}
 #ifdef BCM_BT_DEBUG
 	dev_info(tegra_uport->uport.dev, "[SER_BRCM]-- CHIP HOST_WAKE=HIGH\n");
 #endif
@@ -2263,7 +2266,9 @@ void tegra_lpm_on_locked(struct uart_port *u)
 
 	/* release rx wake lock */
 	if (tegra_uport->is_brcm_rx_wake_locked == 1) {
+#ifdef BCM_BT_DEBUG
 		dev_info(tegra_uport->uport.dev, "[SER_BRCM]release brcm_rx_wake_lock\n");
+#endif
 		wake_unlock(&tegra_uport->brcm_rx_wake_lock);
 		tegra_uport->is_brcm_rx_wake_locked = 0;
 	}
@@ -2277,7 +2282,6 @@ void tegra_lpm_off_locked(struct uart_port *u)
 {
 #ifdef USE_BCM_BT_CHIP /*bt for brcm*/
 	struct tegra_uart_port *tegra_uport = container_of(u, struct tegra_uart_port, uport);
-	unsigned long tflags;
 
     if (tegra_uport->host_wakeup_level == 0){
         return;
@@ -2294,14 +2298,6 @@ void tegra_lpm_off_locked(struct uart_port *u)
 	dev_info(tegra_uport->uport.dev, "[SER_BRCM]-- CHIP HOST_WAKE=LOW\n");
 #endif
 
-
-	/* aquire tx wakelock */
-	wake_lock(&tegra_uport->brcm_tx_wake_lock);
-	if (tegra_uport->bt_wakeup_pin_supported) {
-		gpio_set_value(tegra_uport->bt_wakeup_pin, T_LOW);
-		tegra_uport->bt_wakeup_level = 0;
-		tegra_uport->host_want_sleep = 0;
-		dev_info(u->dev, "[BT]-- HOST BT_WAKE=LOW --\n");
 	/* aquire rx wake lock */
 	if (tegra_uport->is_brcm_rx_wake_locked == 0) {
 		tegra_uport->is_brcm_rx_wake_locked = 1;
